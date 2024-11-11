@@ -101,9 +101,9 @@ void step(int m, bool r) {
   }
   r == 0 ? digitalWrite(t_d, LOW) : digitalWrite(t_d, HIGH);
   digitalWrite(t_s, LOW);
-  microDelay(96);//96
+  microDelay(24);//32
   digitalWrite(t_s, HIGH);
-  microDelay(96); 
+  microDelay(24); 
 }
 void loop() {
   if(digitalRead(stopo1)==LOW){
