@@ -101,7 +101,7 @@ void step(int m, bool r) {
   }
   r == 0 ? digitalWrite(t_d, LOW) : digitalWrite(t_d, HIGH);
   digitalWrite(t_s, LOW);
-  microDelay(24);//32
+  microDelay(24);//24
   digitalWrite(t_s, HIGH);
   microDelay(24); 
 }
