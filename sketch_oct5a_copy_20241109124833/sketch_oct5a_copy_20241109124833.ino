@@ -1,12 +1,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-volatile unsigned long microseconds = 0; // Глобальный счетчик микросекунд
 
-// Обработчик прерывания таймера (например, Timer1)
-ISR(TIMER1_COMPA_vect) {
-  microseconds++;
-}
 
 #define enable 40
 #define stool 7
@@ -57,18 +52,13 @@ void setup() {
 
   digitalWrite(enable, LOW);
 
-  // Инициализация таймера 1 (настроить частоту и режим работы по данным даташита)
-  TCCR1B |= (1 << CS11); // Делитель частоты 8
-  TIMSK1 |= (1 << OCIE1A); // Разрешить прерывание по сравнению
-  OCR1A = 15624; // Пример значения для получения прерываний каждые 1 микросекунду при частоте 16 МГц
-  sei(); // Разрешить глобальные прерывания
 }
 
-
-void delayMicro(unsigned long us) {
-  unsigned long start = microseconds;
-  while (microseconds - start < us) {
-    // Ожидание прерывания таймера
+void microDelay(int k){
+  k=k*4;
+  long int microseconds = micros();// счетчик микросекунд, что бы запомнить состояние micros() и сделать над ним операцию +1 
+  while(micros()-k<microseconds){
+      microseconds+1;
   }
 }
 
@@ -111,12 +101,17 @@ void step(int m, bool r) {
   }
   r == 0 ? digitalWrite(t_d, LOW) : digitalWrite(t_d, HIGH);
   digitalWrite(t_s, LOW);
-  delayMicro(1); 
+  microDelay(96);//96
   digitalWrite(t_s, HIGH);
-  delayMicro(1); 
+  microDelay(96); 
 }
 void loop() {
   if(digitalRead(stopo1)==LOW){
     step(1,0);
+    step(2,0);
+    step(3,0);
+    step(4,0);
+    step(5,0);
+    step(6,0);
   }
 }
