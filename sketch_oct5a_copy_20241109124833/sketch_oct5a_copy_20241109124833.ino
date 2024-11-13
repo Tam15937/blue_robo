@@ -7,6 +7,34 @@ const int stopoPins[] = {42, 44, 46, 48, 49, 47, 45, 43};
 #define enable 40
 #define stool 7
 
+void microDelay(int k){
+  k=k*4;
+  long int microseconds = micros();// счетчик микросекунд, что бы запомнить состояние micros() и сделать над ним операцию +1 
+  while(micros()-k<microseconds){
+      microseconds+1;
+  }
+}
+
+struct Motor{
+  int motorIndex= NULL;
+  bool direction = NULL;
+  Motor(int motorIndex, bool direction){
+      this->motorIndex = motorIndex;
+      this->direction = direction;
+  }
+
+  void step() {
+    if (motorIndex < 1 || motorIndex > 8) return; // Проверка на допустимый индекс
+    int t_s = stepPins[motorIndex - 1];
+    int t_d = dirPins[motorIndex - 1];
+
+    digitalWrite(t_d, direction ? HIGH : LOW);
+    digitalWrite(t_s, LOW);
+    microDelay(165);//165 optimal
+    digitalWrite(t_s, HIGH);
+    microDelay(165);//higher -> slower
+  }
+};
 
 
 void setup() {
@@ -17,29 +45,10 @@ void setup() {
   digitalWrite(enable, LOW);
 }
 
-void microDelay(int k){
-  k=k*4;
-  long int microseconds = micros();// счетчик микросекунд, что бы запомнить состояние micros() и сделать над ним операцию +1 
-  while(micros()-k<microseconds){
-      microseconds+1;
-  }
-}
+Motor motomoto(1,1);
 
-void step(int motorIndex, bool direction) {
-    if (motorIndex < 1 || motorIndex > 8) return; // Проверка на допустимый индекс
-    int t_s = stepPins[motorIndex - 1];
-    int t_d = dirPins[motorIndex - 1];
-
-    digitalWrite(t_d, direction ? HIGH : LOW);
-    digitalWrite(t_s, LOW);
-    microDelay(23);//23 optimal 21 fast
-    digitalWrite(t_s, HIGH);
-    microDelay(23); 
-}
 void loop() {
-  if(digitalRead(stopoPins[0])==LOW){
-    for (int i = 1; i <= 6; i++) {
-        step(i, false);
-    }
+    if(digitalRead(stopoPins[0])==LOW){
+      motomoto.step();
   }
 }
