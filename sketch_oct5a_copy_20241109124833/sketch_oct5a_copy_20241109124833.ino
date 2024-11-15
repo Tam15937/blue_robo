@@ -7,48 +7,60 @@ const int stopoPins[] = {42, 44, 46, 48, 49, 47, 45, 43};
 #define enable 40
 #define stool 7
 
-void microDelay(int k){
-  k=k*4;
-  long int microseconds = micros();// счетчик микросекунд, что бы запомнить состояние micros() и сделать над ним операцию +1 
-  while(micros()-k<microseconds){
-      microseconds+1;
-  }
-}
+void microDelay(int k);
 
-struct Motor{
-  int motorIndex= NULL;
-  bool direction = NULL;
-  Motor(int motorIndex, bool direction){
-      this->motorIndex = motorIndex;
-      this->direction = direction;
-  }
-
-  void step() {
-    if (motorIndex < 1 || motorIndex > 8) return; // Проверка на допустимый индекс
-    int t_s = stepPins[motorIndex - 1];
-    int t_d = dirPins[motorIndex - 1];
-
-    digitalWrite(t_d, direction ? HIGH : LOW);
-    digitalWrite(t_s, LOW);
-    microDelay(165);//165 optimal
-    digitalWrite(t_s, HIGH);
-    microDelay(165);//higher -> slower
-  }
+struct Instruction {
+    unsigned char number;
+    bool direction;
+    int count;
 };
 
+void step(int motorIndex, bool direction, int count) {
+    if (motorIndex < 1 || motorIndex > 8) return; // Check for valid index
+    int pin_motor = stepPins[motorIndex - 1];
+    int pin_dir = dirPins[motorIndex - 1];
 
-void setup() {
-  // Настраиваем пины как выходы
-  for(int i=22;i<50;i++){
-    i<42? pinMode(i, OUTPUT) : pinMode(i, INPUT);
-  }
-  digitalWrite(enable, LOW);
+    digitalWrite(pin_dir, direction ? HIGH : LOW);
+    for (int i = 0; i < count; i++) {
+        digitalWrite(pin_motor, LOW);
+        microDelay(165); // Optimal delay
+        digitalWrite(pin_motor, HIGH);
+        microDelay(165); // Higher -> slower
+    }
 }
 
-Motor motomoto(1,1);
+void microDelay(int k) {
+    k = k * 4;
+    long int microseconds = micros();
+    while (micros() - k < microseconds) {
+        microseconds + 1;
+    }
+}
 
-void loop() {
-    if(digitalRead(stopoPins[0])==LOW){
-      motomoto.step();
-  }
+void getInst(Instruction* inst) {
+    // Read the incoming bytes into the struct
+    Serial.readBytes((char*)inst, sizeof(Instruction));
+}
+
+void setup() {
+    // Set pins as outputs
+    for (int i = 22; i < 50; i++) {
+        if (i < 42) {
+            pinMode(i, OUTPUT);
+        } else {
+            pinMode(i, INPUT);
+        }
+    }
+    digitalWrite(enable, LOW);
+
+    Serial.begin(9600); // Initialize serial port at 9600 baud
+}
+
+void loop() {    
+    // Process the Command
+    if (Serial.available() >= sizeof(Instruction)) {
+        Instruction inst; // Declare Instruction here
+        getInst(&inst);   // Pass a pointer to inst
+        step(int(inst.number), inst.direction, inst.count); // Execute the motor step command
+    }
 }
