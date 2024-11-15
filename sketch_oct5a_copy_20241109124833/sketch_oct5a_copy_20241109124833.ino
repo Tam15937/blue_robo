@@ -15,6 +15,9 @@ struct Instruction {
     int count;
 };
 
+volatile Instruction inst; // Объявляем переменную для хранения инструкции
+volatile bool instructionReady = false; // Флаг готовности инструкции
+
 void step(int motorIndex, bool direction, int count) {
     if (motorIndex < 1 || motorIndex > 8) return; // Check for valid index
     int pin_motor = stepPins[motorIndex - 1];
@@ -33,13 +36,8 @@ void microDelay(int k) {
     k = k * 4;
     long int microseconds = micros();
     while (micros() - k < microseconds) {
-        microseconds + 1;
+        // Ничего не делаем
     }
-}
-
-void getInst(Instruction* inst) {
-    // Read the incoming bytes into the struct
-    Serial.readBytes((char*)inst, sizeof(Instruction));
 }
 
 void setup() {
@@ -54,13 +52,28 @@ void setup() {
     digitalWrite(enable, LOW);
 
     Serial.begin(9600); // Initialize serial port at 9600 baud
+    UCSR0B |= (1 << RXCIE0); // Включаем прерывание по приему данных
+}
+
+ISR(USART_RX_vect) {
+    static uint8_t byteCount = 0;
+    static uint8_t buffer[sizeof(Instruction)];
+
+    buffer[byteCount] = UDR0; // Считываем принятый байт из регистра данных
+
+    byteCount++;
+    
+    if (byteCount >= sizeof(Instruction)) {
+        byteCount = 0; // Сбрасываем счетчик
+        memcpy(&inst, buffer, sizeof(Instruction)); // Копируем данные в структуру
+        instructionReady = true; // Устанавливаем флаг готовности инструкции
+    }
 }
 
 void loop() {    
-    // Process the Command
-    if (Serial.available() >= sizeof(Instruction)) {
-        Instruction inst; // Declare Instruction here
-        getInst(&inst);   // Pass a pointer to inst
-        step(int(inst.number), inst.direction, inst.count); // Execute the motor step command
+    // Проверяем наличие готовой инструкции
+    if (instructionReady) {
+        instructionReady = false; // Сбрасываем флаг готовности
+        step(inst.number, inst.direction, inst.count); // Выполняем команду мотора
     }
 }
