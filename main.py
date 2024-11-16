@@ -1,3 +1,5 @@
+from dis import Instruction
+
 import serial
 import struct
 import time
@@ -17,7 +19,6 @@ def send_instruction(ser: serial.Serial, instruction: Instruction):
     # Send the instruction over UART
     data = instruction.to_bytes()
     ser.write(data)
-    print(f"Sent instruction: Number={instruction.number}, Direction={instruction.direction}, Count={instruction.count}")
 
 def main():
     # Configure the serial port (adjust 'COM_PORT' and 'BAUD_RATE' as needed)
@@ -27,8 +28,13 @@ def main():
     # Initialize serial communication
     with serial.Serial(COM_PORT, BAUD_RATE, timeout=1) as ser:
         time.sleep(2)  # Wait for the connection to establish
-        send_instruction(ser, Instruction(1,False,1037)) #1037 is 360 degrees of motor with reductor
-        time.sleep(1)  # Wait a bit before sending the next instruction
+        while True:
+            print(f'input >> ')
+            inst = input().split(' ')
+            if len(inst)== 3:
+                send_instruction(ser, Instruction(int(inst[0]),bool(inst[1]),int(inst[2]))) #1037 is 360 degrees of motor with reductor
+                print(f'send num = {inst[0]}, dir = {inst[1]}, count = {inst[2]}')
+                time.sleep(1)  # Wait a bit before sending the next instruction
 
 if __name__ == "__main__":
     main()
