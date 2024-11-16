@@ -19,6 +19,10 @@ def send_instruction(ser: serial.Serial, instruction: Instruction):
     # Send the instruction over UART
     data = instruction.to_bytes()
     ser.write(data)
+    for i in range(7):
+        if ser.in_waiting > 0:  # Check if there is data available
+            message = ser.readline().decode('utf-8').rstrip()  # Read and decode the message
+            print(message)  # Print the received message
 
 def main():
     # Configure the serial port (adjust 'COM_PORT' and 'BAUD_RATE' as needed)
