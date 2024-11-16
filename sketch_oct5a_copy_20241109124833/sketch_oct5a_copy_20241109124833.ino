@@ -42,7 +42,7 @@ uint8_t buffer[BUFFER_SIZE];
 int bufferIndex = 0;
 
 
-volatile Instruction inst; // Объявляем переменную для хранения инструкции
+volatile Instruction_t inst; // Объявляем переменную для хранения инструкции
 volatile bool instructionReady = false; // Флаг готовности инструкции
 
 void step(const Instruction_t * const command) {
