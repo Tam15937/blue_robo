@@ -1,36 +1,91 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-const int stepPins[] = {28, 26, 24, 22, 23, 25, 27, 29};
-const int dirPins[] = {36, 34, 32, 30, 31, 33, 35, 37};
-const int stopoPins[] = {42, 44, 46, 48, 49, 47, 45, 43};
-#define enable 40
-#define stool 7
+typedef struct  {
+    uint8_t stepPin;
+    uint8_t dirPins;
+    uint8_t stopPins;
+}Motor_t;
 
-void microDelay(int k);
-
-struct Instruction {
+typedef struct  {
     unsigned char number;
     bool direction;
     int count;
+}Instruction_t;
+
+
+
+static void UART_Init(void);
+static void microDelay(int k);
+
+
+
+
+#define enable 40
+#define stool 7
+
+static const Motor_t Motors = {
+    {28, 36, 42},
+    {26, 34, 44},
+    {24, 32, 46},
+    {22, 30, 48},
+    {23, 31, 49},
+    {25, 33, 47},
+    {27, 35, 45},
+    {29, 37, 43},
 };
+
+
+// Буфер для хранения принятых данных в идеале здесь сделать FIFO но это на вас
+#define BUFFER_SIZE sizeof(Instruction_t)*10
+uint8_t buffer[BUFFER_SIZE];
+int bufferIndex = 0;
+
 
 volatile Instruction inst; // Объявляем переменную для хранения инструкции
 volatile bool instructionReady = false; // Флаг готовности инструкции
 
-void step(int motorIndex, bool direction, int count) {
-    if (motorIndex < 1 || motorIndex > 8) return; // Check for valid index
-    int pin_motor = stepPins[motorIndex - 1];
-    int pin_dir = dirPins[motorIndex - 1];
-
-    digitalWrite(pin_dir, direction ? HIGH : LOW);
-    for (int i = 0; i < count; i++) {
-        digitalWrite(pin_motor, LOW);
+void step(const Instruction_t * const command) {
+    digitalWrite(Motors[command->number].dirPins, command->direction ? HIGH : LOW);
+    for (int i = 0; i < command->count; i++) {
+        digitalWrite(Motors[command->number].stepPin, LOW);
         microDelay(165); // Optimal delay
-        digitalWrite(pin_motor, HIGH);
+        digitalWrite(Motors[command->number].stepPin, HIGH);
         microDelay(165); // Higher -> slower
     }
 }
+
+void setup() {
+    // Set pins as outputs
+    for (uint8_t i = 0; i < sizeof(Motors)/sizeof(Motor_t); i++) {
+        pinMode(Motors[i].stepPin, OUTPUT);
+        pinMode(Motors[i].dirPins, OUTPUT);
+        pinMode(Motors[i].stopPins, OUTPUT);
+    }
+
+    digitalWrite(enable, LOW);
+    //отправку данных нужно будет реализовать ручками 
+    UART_Init();
+}
+
+
+void loop() {    
+
+    if(bufferIndex >= sizeof(Instruction_t)) {
+        Instruction_t command =  ((Instruction_t*)buffer)[0] //так как нужен кольцевой буфер то пока обрабатываем 1 команду
+        bufferIndex = 0;
+        
+
+    }
+    // Проверяем наличие готовой инструкции
+    if (instructionReady) {
+        instructionReady = false; // Сбрасываем флаг готовности
+        step(inst.number, inst.direction, inst.count); // Выполняем команду мотора
+    }
+}
+
+
+
 
 void microDelay(int k) {
     k = k * 4;
@@ -40,40 +95,33 @@ void microDelay(int k) {
     }
 }
 
-void setup() {
-    // Set pins as outputs
-    for (int i = 22; i < 50; i++) {
-        if (i < 42) {
-            pinMode(i, OUTPUT);
-        } else {
-            pinMode(i, INPUT);
-        }
-    }
-    digitalWrite(enable, LOW);
+void UART_Init(void){
+    // Настройка UART на скорость 9600 бод
+    UBRR0H = 0;
+    UBRR0L = 103; // Для скорости 9600 бод при частоте 16 МГц
 
-    Serial.begin(9600); // Initialize serial port at 9600 baud
-    UCSR0B |= (1 << RXCIE0); // Включаем прерывание по приему данных
+    // Разрешить прерывание по приему данных
+    UCSR0B |= (1 << RXCIE0);
+
+    // Включить приемник и передатчик
+    UCSR0B |= (1 << RXEN0) | (1 << TXEN0);
+
+    // Включить глобальные прерывания
+    sei();
 }
 
-ISR(USART_RX_vect) {
-    static uint8_t byteCount = 0;
-    static uint8_t buffer[sizeof(Instruction)];
 
-    buffer[byteCount] = UDR0; // Считываем принятый байт из регистра данных
 
-    byteCount++;
-    
-    if (byteCount >= sizeof(Instruction)) {
-        byteCount = 0; // Сбрасываем счетчик
-        memcpy(&inst, buffer, sizeof(Instruction)); // Копируем данные в структуру
-        instructionReady = true; // Устанавливаем флаг готовности инструкции
+
+// Функция обработки прерывания по приему данных
+ISR(USART0_RX_vect) {
+    // Прочитать принятый байт
+    char received = UDR0; //в if иф не переносить чтение данных из регистра сбрасывает флаг прерывания
+
+    // Записать байт в буфер
+    if (bufferIndex < BUFFER_SIZE) {
+    buffer[bufferIndex++] = received;
     }
 }
 
-void loop() {    
-    // Проверяем наличие готовой инструкции
-    if (instructionReady) {
-        instructionReady = false; // Сбрасываем флаг готовности
-        step(inst.number, inst.direction, inst.count); // Выполняем команду мотора
-    }
-}
+
