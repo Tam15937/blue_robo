@@ -13,7 +13,7 @@ struct Instruction {
   bool direction;
   int count;
 };
-
+//привет
 void step(int motorIndex, bool direction, int count) {
   if (motorIndex < 1 || motorIndex > 8) return; // Check for valid index
   int pin_motor = stepPins[motorIndex - 1];
