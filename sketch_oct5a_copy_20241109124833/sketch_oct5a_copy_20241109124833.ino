@@ -52,7 +52,7 @@ void setup() {
   }
   digitalWrite(enable, LOW);
 
-  Serial.begin(9600); // Initialize serial port at 9600 baud
+  Serial.begin(115200); // Initialize serial port at  baud
 }
 
 void loop() {    
@@ -60,6 +60,7 @@ void loop() {
   if (Serial.available() == sizeof(Instruction)) {
     Instruction inst; // Declare Instruction here
     getInst(&inst);   // Pass a pointer to inst
+    Serial.flush(); // Очистить серийный буфер
 
     Serial.print("I get: ");
     Serial.print(inst.number); // Print number

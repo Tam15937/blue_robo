@@ -27,18 +27,33 @@ def send_instruction(ser: serial.Serial, instruction: Instruction):
 def main():
     # Configure the serial port (adjust 'COM_PORT' and 'BAUD_RATE' as needed)
     COM_PORT = 'COM3'  # Change this to your Arduino's COM port
-    BAUD_RATE = 9600
+    BAUD_RATE = 115200
 
     # Initialize serial communication
     with serial.Serial(COM_PORT, BAUD_RATE, timeout=1) as ser:
         time.sleep(2)  # Wait for the connection to establish
         while True:
-            print(f'input >> ')
-            inst = input().split(' ')
-            if len(inst)== 3:
-                send_instruction(ser, Instruction(int(inst[0]),bool(inst[1]),int(inst[2]))) #1037 is 360 degrees of motor with reductor
-                print(f'send num = {inst[0]}, dir = {inst[1]}, count = {inst[2]}')
-                time.sleep(1)  # Wait a bit before sending the next instruction
+            # Получаем ввод от пользователя
+            inst = input("Введите три значения (1 - 8, 0 или 1, любое целое число): ").split(' ')
+            # Проверяем, что введено ровно три значения
+            if len(inst) == 3:
+                try:
+                    num1 = int(inst[0])
+                    num2 = int(inst[1])
+                    num3 = int(inst[2])
+
+                    # Проверяем условия для первого и второго чисел
+                    if num1 in (1,2,3,4,5,6,7,8) and num2 in (0, 1):
+                        # Если условия выполнены, отправляем инструкцию
+                        send_instruction(ser, Instruction(num1, bool(num2), num3))
+                        print(f'send num = {num1}, dir = {bool(num2)}, count = {num3}')
+                        time.sleep(1)  # Ждем немного перед отправкой следующей инструкции
+                    else:
+                        print("Ошибка: первое 1 до 8, второе число должны быть 0 или 1.")
+                except ValueError:
+                    print("Ошибка: Пожалуйста, введите целые числа.")
+            else:
+                print("Ошибка: Необходимо ввести ровно три значения.")
 
 if __name__ == "__main__":
     main()
