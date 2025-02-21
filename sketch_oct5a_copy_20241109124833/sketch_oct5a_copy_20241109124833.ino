@@ -1,75 +1,143 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
+
 const int stepPins[] = {28, 26, 24, 22, 23, 25, 27, 29};
 const int dirPins[] = {36, 34, 32, 30, 31, 33, 35, 37};
-const int stopoPins[] = {42, 44, 46, 48, 49, 47, 45, 43};
 #define enable 40
-#define stool 7
+#define START_MARKER '<'
+#define END_MARKER '>'
 
 void microDelay(int k);
-
-struct Instruction {
-  unsigned char number;
-  bool direction;
-  int count;
+struct __attribute__((packed)) Instruction {
+    uint8_t number;
+    bool direction;
+    uint32_t count;
 };
-//привет
-void step(int motorIndex, bool direction, int count) {
-  if (motorIndex < 1 || motorIndex > 8) return; // Check for valid index
-  int pin_motor = stepPins[motorIndex - 1];
-  int pin_dir = dirPins[motorIndex - 1];
 
-  digitalWrite(pin_dir, direction ? HIGH : LOW);
-  for (int i = 0; i < count; i++) {
-    digitalWrite(pin_motor, LOW);
-    microDelay(165); // Optimal delay
-    digitalWrite(pin_motor, HIGH);
-    microDelay(165); // Higher -> slower
-  }
-}
+uint8_t calculateChecksum(Instruction inst);
+void sendResponse(const char* message);
+void step(int motorIndex, bool direction, int count);
 
 void microDelay(int k) {
-  k = k * 4;
-  long int microseconds = micros();
-  while (micros() - k < microseconds) {
-      microseconds + 1;
-  }
+    long int startMicros = micros();
+    while (micros() - startMicros < k) {
+        // Ждем заданное количество микросекунд
+    }
 }
 
-void getInst(Instruction* inst) {
-    // Read the incoming bytes into the struct
-    Serial.readBytes((char*)inst, sizeof(Instruction));
+void step(int motorIndex, bool direction, int count) {
+    if (motorIndex < 1 || motorIndex > 8) return; // Проверка на допустимый индекс
+    int pin_motor = stepPins[motorIndex - 1];
+    int pin_dir = dirPins[motorIndex - 1];
+    digitalWrite(pin_dir, direction ? HIGH : LOW);
+    for (int i = 0; i < count; i++) {
+        digitalWrite(pin_motor, LOW);
+        microDelay(165); // Оптимальная задержка
+        digitalWrite(pin_motor, HIGH);
+        microDelay(165); // Чем выше -> тем медленнее
+    }
+}
+
+uint8_t calculateChecksum(Instruction inst) {
+    uint8_t checksum = 0;
+    uint8_t* data = (uint8_t*)&inst;
+    for (size_t i = 0; i < sizeof(Instruction); ++i) {
+        checksum += data[i];
+        Serial.print("Byte: ");
+        Serial.print(data[i], HEX); // Отладочное сообщение
+        Serial.print(", Checksum: ");
+        Serial.println(checksum); // Отладочное сообщение
+    }
+    return checksum;
+}
+
+void sendResponse(const char* message) {
+    Serial.print(START_MARKER);
+    Serial.print(message);
+    Serial.println(END_MARKER);
+}
+
+bool getInst(Instruction* inst) {
+    static boolean recvInProgress = false;
+    static byte dataIndex = 0;
+    char receivedChar;
+    static char data[sizeof(Instruction) + 1]; // +1 для контрольной суммы
+
+    while (Serial.available() > 0) {
+        receivedChar = Serial.read();
+
+        Serial.print("Received char: ");
+        Serial.println(receivedChar); // Отладочное сообщение
+
+        if (!recvInProgress) {
+            if (receivedChar == START_MARKER) {
+                recvInProgress = true;
+                dataIndex = 0;
+                Serial.println("Start marker detected."); // Отладочное сообщение
+            }
+        } else if (receivedChar == END_MARKER) {
+            recvInProgress = false;
+            Serial.println("End marker detected."); // Отладочное сообщение
+            if (dataIndex == sizeof(Instruction) + 1) {
+                Instruction receivedInst;
+                memcpy(&receivedInst, data, sizeof(Instruction));
+                uint8_t receivedChecksum = data[sizeof(Instruction)];
+                uint8_t calculatedChecksum = calculateChecksum(receivedInst);
+                Serial.print("Received checksum: ");
+                Serial.println(receivedChecksum); // Отладочное сообщение
+                Serial.print("Calculated checksum: ");
+                Serial.println(calculatedChecksum); // Отладочное сообщение
+
+                if (calculatedChecksum == receivedChecksum) {
+                    memcpy(inst, &receivedInst, sizeof(Instruction));
+                    sendResponse("OK");
+                    return true;
+                } else {
+                    sendResponse("Error: Checksum Mismatch");
+                    return false;
+                }
+            } else {
+                sendResponse("Error: Incomplete Data");
+                return false;
+            }
+        } else {
+            if (dataIndex < sizeof(data)) {
+                data[dataIndex++] = receivedChar; // Сохранение байта в массив
+                Serial.print("Data byte stored: ");
+                Serial.println(receivedChar); // Отладочное сообщение
+            } else {
+                recvInProgress = false; // Слишком много данных
+                sendResponse("Error: Too Much Data");
+                return false;
+            }
+        }
+    }
+    return false; // Нет полного полученного сообщения
 }
 
 void setup() {
-  // Set pins as outputs
-  for (int i = 22; i < 50; i++) {
-    if (i < 42) {
-        pinMode(i, OUTPUT);
-    } else {
-        pinMode(i, INPUT);
+    for (int i = 0; i < 8; i++) {
+        pinMode(stepPins[i], OUTPUT);
+        pinMode(dirPins[i], OUTPUT);
     }
-  }
-  digitalWrite(enable, LOW);
-
-  Serial.begin(115200); // Initialize serial port at  baud
+    pinMode(enable, OUTPUT);
+    digitalWrite(enable, LOW);
+    Serial.begin(115200); // Инициализация серийного порта на 115200 бод
+    Serial.print("Size of Instruction: ");
+    Serial.println(sizeof(Instruction)); // Должно быть 6
 }
 
-void loop() {    
-  // Process the Command
-  if (Serial.available() == sizeof(Instruction)) {
-    Instruction inst; // Declare Instruction here
-    getInst(&inst);   // Pass a pointer to inst
-    Serial.flush(); // Очистить серийный буфер
-
-    Serial.print("I get: ");
-    Serial.print(inst.number); // Print number
-    Serial.print(" ");          // Print space
-    Serial.print(inst.direction); // Print direction (true/false)
-    Serial.print(" ");          // Print space
-    Serial.print(inst.count);   // Print count
-    Serial.println();   
-    
-    step(int(inst.number), inst.direction, inst.count); // Execute the motor step command
-  }
+void loop() {
+    Instruction inst;
+    if (getInst(&inst)) {
+        Serial.print("Я получил: ");
+        Serial.print(inst.number);
+        Serial.print(" ");
+        Serial.print(inst.direction);
+        Serial.print(" ");
+        Serial.print(inst.count);
+        Serial.println();
+        step(inst.number, inst.direction, inst.count);
+        delay(100); // Задержка 100 мс для обработки
+    }
 }
