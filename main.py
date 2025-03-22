@@ -1,5 +1,3 @@
-from dis import Instruction
-
 import serial
 import struct
 import time
@@ -12,21 +10,20 @@ class Instruction:
         self.count = count  # Number of steps
 
     def to_bytes(self) -> bytes:
-        # Convert the instruction to bytes
-        return struct.pack('B?', self.number, self.direction) + struct.pack('I', self.count)
+        # Convert the instruction to bytes in sequence
+        return struct.pack('B', self.number) + \
+               struct.pack('?', self.direction) + \
+               struct.pack('I', self.count)
 
 def send_instruction(ser: serial.Serial, instruction: Instruction):
     # Send the instruction over UART
     data = instruction.to_bytes()
     ser.write(data)
-    for i in range(7):
-        if ser.in_waiting > 0:  # Check if there is data available
-            message = ser.readline().decode('utf-8').rstrip()  # Read and decode the message
-            print(message)  # Print the received message
+    time.sleep(0.1)  # Wait for data to be sent
 
 def main():
     # Configure the serial port (adjust 'COM_PORT' and 'BAUD_RATE' as needed)
-    COM_PORT = 'COM3'  # Change this to your Arduino's COM port
+    COM_PORT = 'COM4'  # Change this to your Arduino's COM port
     BAUD_RATE = 115200
 
     # Initialize serial communication
@@ -43,7 +40,7 @@ def main():
                     num3 = int(inst[2])
 
                     # Проверяем условия для первого и второго чисел
-                    if num1 in (1,2,3,4,5,6,7,8) and num2 in (0, 1):
+                    if num1 in (1, 2, 3, 4, 5, 6, 7, 8) and num2 in (0, 1):
                         # Если условия выполнены, отправляем инструкцию
                         send_instruction(ser, Instruction(num1, bool(num2), num3))
                         print(f'send num = {num1}, dir = {bool(num2)}, count = {num3}')
@@ -57,4 +54,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    print("Hi")
