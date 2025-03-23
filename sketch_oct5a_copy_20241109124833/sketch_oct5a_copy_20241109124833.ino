@@ -4,7 +4,8 @@
 const int stepPins[] = {28, 26, 24, 22, 23, 25, 27, 29};
 const int dirPins[] = {36, 34, 32, 30, 31, 33, 35, 37};
 const int stopoPins[] = {42, 44, 46, 48, 49, 47, 45, 43};
-static int dat1=0,dat2=0,dat3=0,dat4=0,dat5=0;
+static int en = 0;
+
 #define enable 40
 #define stool 7
 
@@ -17,20 +18,38 @@ void microDelay(int k);
 //};
 
 // Function to move a motor
-void step(int motorIndex, bool direction, int count) {
+void steps(int motorIndex, bool direction, int count) {
   if (motorIndex < 1 || motorIndex > 8) return; // Check for valid index
   int pin_motor = stepPins[motorIndex - 1];
   int pin_dir = dirPins[motorIndex - 1];
-  int datflag = 0;
   digitalWrite(pin_dir, direction ? HIGH : LOW);
+  bool p_stop=0;
+  bool stop =0;
   for (int i = 0; i < count; i++) {
-    digitalWrite(pin_motor, LOW);
-    microDelay(165); // Optimal delay
-    digitalWrite(pin_motor, HIGH);
-    microDelay(165); // Higher -> slower
+    p_stop=stop;
+    bool stop = digitalRead(stopoPins[0]);
+
+    if((stop == 1)&&(p_stop==0) ){
+     direction ? en++ : en--;
+    }
+
+    if ((en<=1)&&(direction==1)||(en>=-1)&&(direction==0)) onestep(pin_motor);
+    else{
+      digitalWrite(pin_dir, !direction ? HIGH : LOW);
+      for (int i = 0; i < 5; i++){
+        onestep(pin_motor);
+      }
+      return;
+    }
   }
 };
 
+void onestep(int pin_motor){
+    microDelay(165); // Optimal delay
+    digitalWrite(pin_motor, HIGH);
+    microDelay(165); // Higher 165 -> slower
+    digitalWrite(pin_motor, LOW);
+}
 
 void microDelay(int k) {
   k = k * 4;
@@ -63,7 +82,7 @@ void loop() {
     for (int i = 0; i < 4; i++) {         // Read count (4 bytes)
       count |= (Serial.read() << (i * 8));
     }
-
+    steps(number, direction, count);
     // Print received data
     Serial.print("I get: ");
     Serial.print(number); // Print number
@@ -72,8 +91,12 @@ void loop() {
     Serial.print(" ");    
     Serial.print(count);   // Print count
     Serial.println();   
-
+    Serial.println(en);
+   
     // Execute the motor step command
-    step(number, direction, count);
+    
+    
   }
+   //Serial.println(digitalRead(stopoPins[0])); 
+
 }
