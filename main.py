@@ -26,7 +26,7 @@ def send_instruction(ser: serial.Serial, instruction: Instruction):
 
 def main():
     # Configure the serial port (adjust 'COM_PORT' and 'BAUD_RATE' as needed)
-    COM_PORT = 'COM4'  # Change this to your Arduino's COM port
+    COM_PORT = 'COM3'  # Change this to your Arduino's COM port
     BAUD_RATE = 115200
 
     # Initialize serial communication
@@ -43,7 +43,7 @@ def main():
                     num3 = int(inst[2])
 
                     # Проверяем условия для первого и второго чисел
-                    if num1 in (1, 2, 3, 4, 5, 6, 7, 8) and num2 in (0, 1):
+                    if num1 in (1, 2, 3, 4, 5, 6, 8) and num2 in (0, 1):
                         # Если условия выполнены, отправляем инструкцию
                         send_instruction(ser, Instruction(num1, bool(num2), num3))
                         print(f'send num = {num1}, dir = {bool(num2)}, count = {num3}')

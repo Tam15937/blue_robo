@@ -4,10 +4,11 @@
 const int stepPins[] = {28, 26, 24, 22, 23, 25, 27, 29};
 const int dirPins[] = {36, 34, 32, 30, 31, 33, 35, 37};
 const int stopoPins[] = {42, 44, 46, 48, 49, 47, 45, 43};
-static int en = 0;
 
 #define enable 40
 #define stool 7
+
+
 
 void microDelay(int k);
 
@@ -18,31 +19,55 @@ void microDelay(int k);
 //};
 
 // Function to move a motor
-void steps(int motorIndex, bool direction, int count) {
-  if (motorIndex < 1 || motorIndex > 8) return; // Check for valid index
-  int pin_motor = stepPins[motorIndex - 1];
-  int pin_dir = dirPins[motorIndex - 1];
-  digitalWrite(pin_dir, direction ? HIGH : LOW);
+void steps(int motorIndex-1, bool direction-1, int count) {
+  if (motorIndex < 0 || motorIndex > 7) return; // Check for valid index
+  digitalWrite(dirPins[motorIndex ], direction ? HIGH : LOW);
   bool p_stop=0;
   bool stop =0;
   for (int i = 0; i < count; i++) {
-    p_stop=stop;
-    bool stop = digitalRead(stopoPins[0]);
+    // p_stop=stop;
+    // bool stop = digitalRead(stopoPins[0]);
 
-    if((stop == 1)&&(p_stop==0) ){
-     direction ? en++ : en--;
-    }
+    // if((stop == 1)&&(p_stop==0) ){
+    //  direction ? en++ : en--;
+    // }
 
-    if ((en<=1)&&(direction==1)||(en>=-1)&&(direction==0)) onestep(pin_motor);
-    else{
-      digitalWrite(pin_dir, !direction ? HIGH : LOW);
-      for (int i = 0; i < 5; i++){
-        onestep(pin_motor);
-      }
-      return;
-    }
+    // if ((en<=1)&&(direction==1)||(en>=-1)&&(direction==0)) onestep(pin_motor);
+    // else{
+    //   digitalWrite(pin_dir, !direction ? HIGH : LOW);
+    //   for (int i = 0; i < 5; i++){
+        onestep(stepPins[motorIndex]);
+    //   }
+    //   return;
+    // }
   }
 };
+
+for(int i;i<=8;i++){
+  stepPins[i];
+  dirPins[i];
+  digitalWrite(dirPins[motorIndex ], direction ? HIGH : LOW);
+}
+
+void art2move(bool direction, int count) {
+  int pin_motor1 = stepPins[1]; 
+  int pin_dir1 = dirPins[1];   
+  int pin_motor2 = stepPins[2]; 
+  int pin_dir2 = dirPins[2];    
+
+  digitalWrite(pin_dir1, direction ? HIGH : LOW);
+  digitalWrite(pin_dir2, direction ? HIGH : LOW);
+
+  for (int i = 0; i < count; i++) {
+    microDelay(165); 
+    digitalWrite(pin_motor1, HIGH);
+    digitalWrite(pin_motor2, HIGH);
+    microDelay(165); // Higher 165 -> slower
+    digitalWrite(pin_motor1, LOW);
+    digitalWrite(pin_motor2, LOW);
+
+  }
+}
 
 void onestep(int pin_motor){
     microDelay(165); // Optimal delay
@@ -82,7 +107,11 @@ void loop() {
     for (int i = 0; i < 4; i++) {         // Read count (4 bytes)
       count |= (Serial.read() << (i * 8));
     }
-    steps(number, direction, count);
+
+    if ((number == 2) || (number == 3))
+      art2move(direction,count);
+    else
+      steps(number, direction, count);
     // Print received data
     Serial.print("I get: ");
     Serial.print(number); // Print number
@@ -93,10 +122,17 @@ void loop() {
     Serial.println();   
     Serial.println(en);
    
-    // Execute the motor step command
+
     
     
   }
    //Serial.println(digitalRead(stopoPins[0])); 
 
 }
+
+
+Нужно сделать:
+1.Прием данных в вектор, формата 3(кол-во двигателей) 1(индекс двигателя) 300(количество шагов и направление) 3(№) -400(шаги) 6(№) 100(шаги)
+2.Массив для контроля состояний
+3.Начальная калибровка
+4.Одновременное движение двигателями
